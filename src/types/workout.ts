@@ -120,10 +120,55 @@ export interface MobilityExercise {
 }
 
 export type SubscriptionTier = "free" | "pro";
+export type UserRole = "athlete" | "coach";
+
+export interface CoachingCheckIn {
+  id: string;
+  date: string;
+  fullName: string;
+  muscleGroup: string;
+  // Sommeil
+  sleepStart: string; // "23:30"
+  sleepEnd: string; // "07:00"
+  sleepQuality: number; // 1-10
+  sleepDisruptors: string[]; // ["Écrans", "Stress", "Réveils"]
+  // Nutrition & Caféine
+  preWorkoutMeal: "breakfast_and_pre" | "breakfast_only" | "fasted";
+  hydrated: boolean;
+  caffeinePre: boolean;
+  caffeineTime?: string;
+  caffeineEarlier: boolean;
+  caffeineDayBefore: boolean;
+  // Ressenti (1-10)
+  stress: number;
+  energy: number;
+  motivation: number;
+  // Timing & Clôture (auto + fin de séance)
+  sessionTime?: string;
+  firstWorkingSetTime?: string;
+  intensity?: number; // 1-10
+  negativeFactors?: string;
+  readinessScore: number; // 0-100
+}
+
+export interface CoachClientSummary {
+  id: string;
+  fullName: string;
+  email: string;
+  tier: SubscriptionTier;
+  highestRank: FaouziRank;
+  latestCheckIn?: CoachingCheckIn;
+  latestSessionTitle?: string;
+  latestSessionDate?: string;
+  latestTopSetLabel?: string;
+}
 
 export interface UserSettings {
   displayName: string;
   email: string;
+  role: UserRole;
+  coachCode?: string;
+  onboardingCompleted: boolean;
   tier: SubscriptionTier;
   splitMode: "11-day" | "custom";
   currentCycleDay: number; // 1..11

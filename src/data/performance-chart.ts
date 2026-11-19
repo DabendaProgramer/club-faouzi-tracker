@@ -68,7 +68,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   // BACK
   {
     exerciseKey: "lat-pulldown",
-    displayName: "Lat Pull Down / Pull Ups",
+    displayName: "Tirage Vertical (Lat Pulldown)",
     muscleGroup: "Dos",
     thresholds: [
       { rank: "Iron", weightKg: 35, reps: 10 },
@@ -81,7 +81,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   },
   {
     exerciseKey: "rowing",
-    displayName: "Rowing",
+    displayName: "Rowing Horizontal / Barre",
     muscleGroup: "Dos",
     thresholds: [
       { rank: "Iron", weightKg: 30, reps: 8 },
@@ -108,7 +108,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   // CHEST
   {
     exerciseKey: "bench-press",
-    displayName: "Développé Couché / Chest Press",
+    displayName: "Développé Couché (Bench Press)",
     muscleGroup: "Chest",
     thresholds: [
       { rank: "Iron", weightKg: 50, reps: 8 },
@@ -135,7 +135,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   // SHOULDERS & TRICEPS
   {
     exerciseKey: "shoulder-press",
-    displayName: "Développé Épaules",
+    displayName: "Développé Militaire (Épaules)",
     muscleGroup: "Épaules",
     thresholds: [
       { rank: "Iron", weightKg: 30, reps: 8 },
@@ -161,7 +161,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   },
   {
     exerciseKey: "triceps-pushdown",
-    displayName: "Triceps Pushdown / Barre",
+    displayName: "Extension Triceps Poulie Haute",
     muscleGroup: "Triceps",
     thresholds: [
       { rank: "Iron", weightKg: 15, reps: 10 },
@@ -175,7 +175,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   // BICEPS
   {
     exerciseKey: "ez-bar-curl",
-    displayName: "Barre EZ contre le mur",
+    displayName: "Curl Barre EZ Strict (Mur)",
     muscleGroup: "Biceps",
     thresholds: [
       { rank: "Iron", weightKg: 7.5, reps: 10 },
@@ -189,7 +189,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   // LEGS
   {
     exerciseKey: "squats",
-    displayName: "Squats",
+    displayName: "Squat Barre Libre",
     muscleGroup: "Legs",
     thresholds: [
       { rank: "Iron", weightKg: 25, reps: 5 },
@@ -202,7 +202,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   },
   {
     exerciseKey: "leg-curls",
-    displayName: "Leg Curls",
+    displayName: "Leg Curl (Ischio-jambiers)",
     muscleGroup: "Legs",
     thresholds: [
       { rank: "Iron", weightKg: 25, reps: 8 },
@@ -215,7 +215,7 @@ export const FAOUZI_PERFORMANCE_CHART: ChartExerciseRule[] = [
   },
   {
     exerciseKey: "calves",
-    displayName: "Calves (Mollets)",
+    displayName: "Élévations Mollets (Standing Calf Raise)",
     muscleGroup: "Legs",
     thresholds: [
       { rank: "Iron", weightKg: 40, reps: 10 },
@@ -247,4 +247,54 @@ export function evaluateRankForSet(
     }
   }
   return highest;
+}
+
+export function getNextRankProgress(
+  exerciseId: string,
+  muscleGroup: MuscleGroup,
+  bestWeightKg: number,
+  bestReps: number
+) {
+  const rule =
+    FAOUZI_PERFORMANCE_CHART.find((r) => r.exerciseKey === exerciseId) ??
+    FAOUZI_PERFORMANCE_CHART.find((r) => r.muscleGroup === muscleGroup);
+
+  if (!rule) return null;
+
+  const currentRank = evaluateRankForSet(
+    exerciseId,
+    muscleGroup,
+    bestWeightKg,
+    bestReps
+  );
+  const nextThreshold =
+    rule.thresholds.find(
+      (t) => !(bestWeightKg >= t.weightKg && bestReps >= t.reps)
+    ) ?? null;
+
+  if (!nextThreshold) {
+    return {
+      currentRank,
+      nextRank: null,
+      targetWeightKg: 0,
+      targetReps: 0,
+      progressPct: 100,
+    };
+  }
+
+  const pct = Math.min(
+    99,
+    Math.max(
+      5,
+      Math.round((bestWeightKg / Math.max(1, nextThreshold.weightKg)) * 100)
+    )
+  );
+
+  return {
+    currentRank,
+    nextRank: nextThreshold.rank,
+    targetWeightKg: nextThreshold.weightKg,
+    targetReps: nextThreshold.reps,
+    progressPct: pct,
+  };
 }

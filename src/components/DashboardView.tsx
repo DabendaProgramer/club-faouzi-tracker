@@ -18,7 +18,12 @@ import {
   UserSettings,
   WorkoutSession,
 } from "@/types/workout";
-import { compareExerciseWithHistory } from "@/lib/workout-engine";
+import {
+  compareExerciseWithHistory,
+  estimate1RM,
+  getBestTopSet,
+  toKg,
+} from "@/lib/workout-engine";
 import {
   FAOUZI_PERFORMANCE_CHART,
   RANK_STYLES,
@@ -44,6 +49,38 @@ export function DashboardView({
 }: DashboardViewProps) {
   const [selectedMuscleFilter, setSelectedMuscleFilter] =
     useState<string>("Tous");
+  const [chartExId, setChartExId] = useState<string>(
+    exercises[0]?.id ?? "ez-bar-curl"
+  );
+
+  const progressionPoints = useMemo(() => {
+    const ordered = [...history].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const points: { label: string; oneRm: number }[] = [];
+    for (const sess of ordered) {
+      const exSets = sess.sets.filter((s) => s.exerciseId === chartExId);
+      const best = getBestTopSet(exSets);
+      if (best) {
+        points.push({
+          label: new Date(sess.date).toLocaleDateString("fr-FR", {
+            day: "2-digit",
+            month: "2-digit",
+          }),
+          oneRm: estimate1RM(toKg(best.weight, best.unit), best.reps),
+        });
+      }
+    }
+    const activeForEx = activeSets.filter((s) => s.exerciseId === chartExId);
+    const activeBest = getBestTopSet(activeForEx);
+    if (activeBest) {
+      points.push({
+        label: "Auj.",
+        oneRm: estimate1RM(toKg(activeBest.weight, activeBest.unit), activeBest.reps),
+      });
+    }
+    return points.slice(-7);
+  }, [history, activeSets, chartExId]);
 
   // Build comparison cards for every exercise that has either active sets or history
   const exerciseComparisons = useMemo(() => {
@@ -116,6 +153,67 @@ export function DashboardView({
           <div className="text-xl font-black text-white">{badges.length}</div>
           <div className="text-[11px] font-medium text-zinc-400">Badges</div>
         </div>
+      </div>
+
+      {/* Visual 1RM Progression Bar Chart */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="inline-flex items-center gap-2 text-sm font-extrabold text-white">
+            <TrendingUp className="h-4 w-4 text-emerald-400" />
+            Évolution 1RM Estimé
+          </h2>
+          <select
+            value={chartExId}
+            onChange={(e) => setChartExId(e.target.value)}
+            className="max-w-[170px] truncate rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-xs font-semibold text-white outline-none focus:border-yellow-500"
+          >
+            {exercises.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {progressionPoints.length === 0 ? (
+          <p className="py-4 text-center text-xs text-zinc-500">
+            Pas encore de données enregistrées sur cet exercice.
+          </p>
+        ) : (
+          <div className="flex h-32 items-end gap-2 pt-4">
+            {(() => {
+              const maxVal = Math.max(
+                ...progressionPoints.map((p) => p.oneRm),
+                1
+              );
+              return progressionPoints.map((pt, idx) => {
+                const heightPct = Math.max(15, Math.round((pt.oneRm / maxVal) * 100));
+                const isLast = idx === progressionPoints.length - 1;
+                return (
+                  <div
+                    key={`${pt.label}-${idx}`}
+                    className="flex flex-1 flex-col items-center gap-1"
+                  >
+                    <span className="text-[10px] font-bold text-zinc-300">
+                      {pt.oneRm}kg
+                    </span>
+                    <div className="flex h-20 w-full items-end">
+                      <div
+                        style={{ height: `${heightPct}%` }}
+                        className={`w-full rounded-t-lg transition-all ${
+                          isLast
+                            ? "bg-gradient-to-t from-yellow-600 to-yellow-400"
+                            : "bg-zinc-700"
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-zinc-500">{pt.label}</span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Comparison vs Last Session */}

@@ -8,7 +8,7 @@ import {
 export const PRESET_EXERCISES: Exercise[] = [
   {
     id: "ez-bar-curl",
-    name: "Barre EZ contre le mur",
+    name: "Curl Barre EZ Strict (Mur)",
     muscleGroup: "Biceps",
     defaultUnit: "kg",
     notes:
@@ -93,7 +93,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "shoulder-press",
-    name: "Développé Épaules",
+    name: "Développé Militaire (Épaules)",
     muscleGroup: "Épaules",
     defaultUnit: "kg",
     notes: "Contrôle la descente, ne verrouille pas brutalement en haut.",
@@ -160,7 +160,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "triceps-pushdown",
-    name: "Triceps Pushdown / Barre",
+    name: "Extension Triceps Poulie Haute",
     muscleGroup: "Triceps",
     defaultUnit: "kg",
     defaultSets: [
@@ -193,7 +193,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "lat-activation",
-    name: "Activation des Dorsaux",
+    name: "Pull-Over Poulie (Activation Dorsaux)",
     muscleGroup: "Dos",
     defaultUnit: "kg",
     notes:
@@ -211,7 +211,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "lat-pulldown",
-    name: "Lat Pull Down / Pull Ups",
+    name: "Tirage Vertical (Lat Pulldown)",
     muscleGroup: "Dos",
     defaultUnit: "kg",
     audioMemoLabel: "Écoute l'audio (consignes dos)",
@@ -253,7 +253,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "rowing",
-    name: "Rowing",
+    name: "Rowing Horizontal / Barre",
     muscleGroup: "Dos",
     defaultUnit: "kg",
     audioMemoLabel: "Écoute l'audio (tirage dos)",
@@ -314,7 +314,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "bench-press",
-    name: "Développé Couché / Chest Press",
+    name: "Développé Couché (Bench Press)",
     muscleGroup: "Chest",
     defaultUnit: "kg",
     defaultSets: [
@@ -389,7 +389,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "squats",
-    name: "Squats",
+    name: "Squat Barre Libre",
     muscleGroup: "Legs",
     defaultUnit: "kg",
     isEachSide: true,
@@ -489,7 +489,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "leg-curls",
-    name: "Leg Curls",
+    name: "Leg Curl (Ischio-jambiers)",
     muscleGroup: "Legs",
     defaultUnit: "kg",
     notes: "Amplitude complète sur la phase positive.",
@@ -538,7 +538,7 @@ export const PRESET_EXERCISES: Exercise[] = [
   },
   {
     id: "calves",
-    name: "Calves (Mollets)",
+    name: "Élévations Mollets (Standing Calf Raise)",
     muscleGroup: "Legs",
     defaultUnit: "lbs",
     notes:

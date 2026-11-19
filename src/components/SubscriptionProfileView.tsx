@@ -23,12 +23,14 @@ interface SubscriptionProfileViewProps {
   settings: UserSettings;
   history: WorkoutSession[];
   onUpdateSettings: (partial: Partial<UserSettings>) => void;
+  onShowLanding?: () => void;
 }
 
 export function SubscriptionProfileView({
   settings,
   history,
   onUpdateSettings,
+  onShowLanding,
 }: SubscriptionProfileViewProps) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
@@ -141,6 +143,68 @@ export function SubscriptionProfileView({
             {settings.tier === "pro" ? "PRO ACTIF" : "GRATUIT"}
           </span>
         </div>
+
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-xs">
+          {!settings.email ? (
+            <div className="inline-flex rounded-lg bg-zinc-950 p-0.5">
+              {(["athlete", "coach"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => onUpdateSettings({ role: r })}
+                  className={`rounded-md px-3 py-1 text-[11px] font-bold capitalize ${
+                    settings.role === r
+                      ? "bg-yellow-500 text-zinc-950"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {r === "athlete" ? "Démo Athlète" : "Démo Coach"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+              Compte {settings.role === "coach" ? "Coach" : "Athlète"}
+            </span>
+          )}
+
+          {onShowLanding && (
+            <button
+              type="button"
+              onClick={onShowLanding}
+              className="text-[11px] font-semibold text-zinc-400 hover:text-white"
+            >
+              Page d&apos;accueil →
+            </button>
+          )}
+        </div>
+
+        {/* Code Coach Linking */}
+        <div className="mt-3 border-t border-zinc-800 pt-3 text-xs">
+          {settings.role === "coach" ? (
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400">Ton Code Coach à partager :</span>
+              <span className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1 font-mono font-black text-yellow-400">
+                FAOUZI-PRO
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-zinc-400">Code Coach :</span>
+              <input
+                type="text"
+                placeholder="Ex: FAOUZI-PRO"
+                value={settings.coachCode ?? ""}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    coachCode: e.target.value.toUpperCase(),
+                  })
+                }
+                className="w-36 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-right font-mono text-xs font-bold uppercase text-white outline-none focus:border-yellow-500"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* SaaS Subscription Plans (Freemium vs Pro) */}
@@ -230,8 +294,9 @@ export function SubscriptionProfileView({
         )}
       </div>
 
-      {/* Training Preferences */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 space-y-4">
+      {/* Training Preferences (Athlete only) */}
+      {settings.role === "athlete" && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 space-y-4">
         <h3 className="inline-flex items-center gap-2 text-sm font-extrabold text-white">
           <Settings className="h-4 w-4 text-yellow-400" />
           Préférences d&apos;entraînement
@@ -301,7 +366,8 @@ export function SubscriptionProfileView({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Cloud Sync (Supabase Auth) & Backup */}
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 space-y-3">
