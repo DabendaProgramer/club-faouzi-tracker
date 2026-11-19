@@ -1,0 +1,16 @@
+{
+  "name": "Club Faouzi Tracker",
+  "short_name": "Faouzi Perf",
+  "description": "Tracker musculation mobile-first : Top Set, Back-off 0.85x, Split 11 jours & Rangs Club Faouzi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#eab308",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
