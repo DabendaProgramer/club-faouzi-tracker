@@ -160,6 +160,8 @@ export default function HomePage() {
             setEntryMode(
               cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
             );
+          } else {
+            setEntryMode("onboarding");
           }
           if (cloud.sessions && cloud.sessions.length > 0) {
             setHistory(cloud.sessions);
