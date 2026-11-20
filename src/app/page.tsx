@@ -26,6 +26,7 @@ import {
   SPLIT_11_DAYS,
 } from "@/data/presets";
 import { isWorkingSet, toKg } from "@/lib/workout-engine";
+import { supabase } from "@/lib/supabase";
 import {
   fetchCloudData,
   getCurrentUserId,
@@ -152,15 +153,27 @@ export default function HomePage() {
           if (parsed.todayCheckIn) setTodayCheckIn(parsed.todayCheckIn);
         }
 
-        const userId = await getCurrentUserId();
-        if (userId) {
+        const handleSignedInUser = async (
+          userId: string,
+          userEmail?: string,
+          userFullName?: string
+        ) => {
           const cloud = await fetchCloudData(userId);
           if (cloud.settingsPartial) {
-            setSettings((prev) => ({ ...prev, ...cloud.settingsPartial }));
+            setSettings((prev) => ({
+              ...prev,
+              ...cloud.settingsPartial,
+              email: cloud.settingsPartial?.email || userEmail || prev.email,
+            }));
             setEntryMode(
               cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
             );
           } else {
+            setSettings((prev) => ({
+              ...prev,
+              email: userEmail || prev.email,
+              displayName: userFullName || prev.displayName,
+            }));
             setEntryMode("onboarding");
           }
           if (cloud.sessions && cloud.sessions.length > 0) {
@@ -169,6 +182,16 @@ export default function HomePage() {
           if (cloud.badges && cloud.badges.length > 0) {
             setBadges(cloud.badges);
           }
+        };
+
+        const userId = await getCurrentUserId();
+        if (userId && supabase) {
+          const { data } = await supabase.auth.getUser();
+          await handleSignedInUser(
+            userId,
+            data.user?.email,
+            data.user?.user_metadata?.full_name as string | undefined
+          );
         }
       } catch {
         // ignore storage or network errors
@@ -176,6 +199,42 @@ export default function HomePage() {
         setHydrated(true);
       }
     });
+
+    if (!supabase) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+        session?.user
+      ) {
+        const cloud = await fetchCloudData(session.user.id);
+        if (cloud.settingsPartial) {
+          setSettings((prev) => ({
+            ...prev,
+            ...cloud.settingsPartial,
+            email:
+              cloud.settingsPartial?.email || session.user.email || prev.email,
+          }));
+          setEntryMode(
+            cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
+          );
+        } else {
+          setSettings((prev) => ({
+            ...prev,
+            email: session.user.email || prev.email,
+            displayName:
+              (session.user.user_metadata?.full_name as string | undefined) ||
+              prev.displayName,
+          }));
+          setEntryMode("onboarding");
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Save state to localStorage
