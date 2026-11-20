@@ -103,6 +103,54 @@ const DEMO_CLIENTS: DemoClientExtended[] = [
       intensity: 9,
       readinessScore: 89,
     },
+    checkIns: [
+      {
+        id: "chk-demo-1",
+        date: new Date(Date.now() - 86400000).toISOString(),
+        fullName: "Yassine Benali",
+        muscleGroup: "Dos",
+        sleepStart: "23:15",
+        sleepEnd: "07:15",
+        sleepQuality: 8,
+        sleepDisruptors: [],
+        preWorkoutMeal: "breakfast_and_pre",
+        hydrated: true,
+        caffeinePre: true,
+        caffeineTime: "17:30",
+        caffeineEarlier: false,
+        caffeineDayBefore: true,
+        stress: 3,
+        energy: 9,
+        motivation: 9,
+        sessionTime: "18:05",
+        firstWorkingSetTime: "18:22",
+        intensity: 9,
+        readinessScore: 89,
+      },
+      {
+        id: "chk-demo-1b",
+        date: new Date(Date.now() - 3 * 86400000).toISOString(),
+        fullName: "Yassine Benali",
+        muscleGroup: "Épaule + Triceps",
+        sleepStart: "23:45",
+        sleepEnd: "07:00",
+        sleepQuality: 7,
+        sleepDisruptors: ["Écrans"],
+        preWorkoutMeal: "breakfast_and_pre",
+        hydrated: true,
+        caffeinePre: true,
+        caffeineTime: "17:45",
+        caffeineEarlier: false,
+        caffeineDayBefore: false,
+        stress: 4,
+        energy: 8,
+        motivation: 8,
+        sessionTime: "18:10",
+        firstWorkingSetTime: "18:28",
+        intensity: 8,
+        readinessScore: 81,
+      },
+    ],
     sessions: [
       {
         id: "y-biceps",
@@ -194,6 +242,32 @@ const DEMO_CLIENTS: DemoClientExtended[] = [
       negativeFactors: "Manque de sommeil",
       readinessScore: 54,
     },
+    checkIns: [
+      {
+        id: "chk-demo-2",
+        date: new Date(Date.now() - 2 * 86400000).toISOString(),
+        fullName: "Karim Tazi",
+        muscleGroup: "Legs Day",
+        sleepStart: "01:30",
+        sleepEnd: "07:00",
+        sleepQuality: 5,
+        sleepDisruptors: ["Écrans", "Stress"],
+        preWorkoutMeal: "breakfast_only",
+        hydrated: false,
+        caffeinePre: true,
+        caffeineTime: "19:00",
+        caffeineEarlier: true,
+        caffeineDayBefore: true,
+        stress: 7,
+        energy: 5,
+        motivation: 6,
+        sessionTime: "19:15",
+        firstWorkingSetTime: "19:38",
+        intensity: 7,
+        negativeFactors: "Manque de sommeil",
+        readinessScore: 54,
+      },
+    ],
     sessions: [
       {
         id: "k-legs",
@@ -266,6 +340,7 @@ export function CoachDashboard({
         ? `${best.exerciseName} · ${best.weight}${best.unit} × ${best.reps}`
         : undefined,
       latestCheckIn: userCheckIns[0],
+      checkIns: userCheckIns,
       sessions: userHistory,
     };
     return [...DEMO_CLIENTS, selfClient];
@@ -526,6 +601,108 @@ export function CoachDashboard({
               )}
             </div>
           )}
+
+          {/* Historique complet des Check-ins */}
+          <div className="border-t border-zinc-800 pt-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400">
+                Historique des Check-ins ({selectedClient.checkIns.length})
+              </h4>
+            </div>
+
+            {selectedClient.checkIns.length === 0 ? (
+              <p className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 py-4 text-center text-xs text-zinc-500">
+                Aucun historique de Check-in disponible pour cet athlète.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {selectedClient.checkIns.map((chk) => (
+                  <div
+                    key={chk.id}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-white">
+                          {chk.muscleGroup}
+                        </span>
+                        <span className="ml-2 text-[11px] text-zinc-400">
+                          {new Date(chk.date).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          chk.readinessScore >= 75
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : chk.readinessScore >= 60
+                            ? "bg-yellow-500/20 text-yellow-400"
+                            : "bg-rose-500/20 text-rose-400"
+                        }`}
+                      >
+                        {chk.readinessScore}%
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5 text-center text-[10px]">
+                      <div className="rounded-lg bg-zinc-900/90 p-1.5">
+                        <div className="text-zinc-500">Sommeil</div>
+                        <div className="font-bold text-white">
+                          {chk.sleepQuality}/10
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-zinc-900/90 p-1.5">
+                        <div className="text-zinc-500">Énergie</div>
+                        <div className="font-bold text-white">
+                          {chk.energy}/10
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-zinc-900/90 p-1.5">
+                        <div className="text-zinc-500">Stress</div>
+                        <div className="font-bold text-white">
+                          {chk.stress}/10
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-zinc-900/90 p-1.5">
+                        <div className="text-zinc-500">Motiv.</div>
+                        <div className="font-bold text-white">
+                          {chk.motivation}/10
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-zinc-900/90 p-1.5">
+                        <div className="text-zinc-500">Intensité</div>
+                        <div className="font-bold text-yellow-400">
+                          {chk.intensity ?? "—"}/10
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
+                      <span>
+                        {chk.sleepStart} → {chk.sleepEnd} · Hydraté :{" "}
+                        {chk.hydrated ? "Oui" : "Non"}
+                      </span>
+                      <span>
+                        {chk.caffeinePre
+                          ? `Caféine (${chk.caffeineTime || "pré"})`
+                          : "Sans caféine pré"}
+                      </span>
+                    </div>
+
+                    {chk.negativeFactors && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-rose-300">
+                        <Zap className="h-3 w-3 shrink-0" />
+                        <span>{chk.negativeFactors}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

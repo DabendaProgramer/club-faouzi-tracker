@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowRight, Check, Crown, User, Users } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Crown,
+  Loader2,
+  User,
+  Users,
+} from "lucide-react";
 import {
   RoundingStep,
   UserRole,
   UserSettings,
   WeightUnit,
 } from "@/types/workout";
+import { getCurrentUserId, linkCoachByCode } from "@/lib/supabase-sync";
 
 interface OnboardingFlowProps {
   initialSettings: UserSettings;
@@ -26,6 +36,14 @@ export function OnboardingFlow({
   );
   const [role, setRole] = useState<UserRole>(initialSettings.role);
   const [coachCode, setCoachCode] = useState(initialSettings.coachCode ?? "");
+  const [verifiedCoachName, setVerifiedCoachName] = useState<
+    string | undefined
+  >(initialSettings.linkedCoachName);
+  const [coachCheckLoading, setCoachCheckLoading] = useState(false);
+  const [coachCheckMessage, setCoachCheckMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [splitMode, setSplitMode] = useState<"11-day" | "custom">(
     initialSettings.splitMode
   );
@@ -36,11 +54,47 @@ export function OnboardingFlow({
     initialSettings.roundingStep
   );
 
+  const normalizedCoachCode = coachCode.trim().toUpperCase();
+  const isCoachCodeFormatValid =
+    normalizedCoachCode.length === 0 ||
+    /^[A-Z0-9-]{4,24}$/.test(normalizedCoachCode);
+
+  const handleVerifyCoachCode = async () => {
+    setCoachCheckLoading(true);
+    setCoachCheckMessage(null);
+    try {
+      const uid = (await getCurrentUserId()) ?? "";
+      const res = await linkCoachByCode(uid, coachCode);
+      if (res.ok) {
+        setVerifiedCoachName(res.coachName);
+        if (res.coachCode) setCoachCode(res.coachCode);
+        setCoachCheckMessage({
+          type: "success",
+          text: `Coach trouvé : ${res.coachName ?? "Coach"} (${res.coachCode ?? normalizedCoachCode})`,
+        });
+      } else {
+        setVerifiedCoachName(undefined);
+        setCoachCheckMessage({
+          type: "error",
+          text: res.error ?? "Code coach invalide.",
+        });
+      }
+    } catch {
+      setCoachCheckMessage({
+        type: "error",
+        text: "Impossible de vérifier le code coach.",
+      });
+    } finally {
+      setCoachCheckLoading(false);
+    }
+  };
+
   const handleFinish = () => {
     onComplete({
       displayName: displayName.trim() || "Athlète Faouzi",
       role,
-      coachCode: coachCode.trim().toUpperCase() || undefined,
+      coachCode: normalizedCoachCode || undefined,
+      linkedCoachName: verifiedCoachName,
       splitMode,
       preferredUnit,
       roundingStep,
@@ -135,17 +189,58 @@ export function OnboardingFlow({
             </div>
 
             {role === "athlete" && (
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-zinc-400">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-400">
                   Code de ton Coach (optionnel)
                 </label>
-                <input
-                  type="text"
-                  placeholder="Ex: FAOUZI-PRO"
-                  value={coachCode}
-                  onChange={(e) => setCoachCode(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs font-bold uppercase text-white outline-none focus:border-yellow-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ex: FAOUZI-PRO"
+                    value={coachCode}
+                    onChange={(e) => {
+                      setCoachCode(e.target.value.toUpperCase());
+                      setVerifiedCoachName(undefined);
+                      setCoachCheckMessage(null);
+                    }}
+                    className="flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs font-bold uppercase text-white outline-none focus:border-yellow-500"
+                  />
+                  {normalizedCoachCode.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleVerifyCoachCode}
+                      disabled={coachCheckLoading || !isCoachCodeFormatValid}
+                      className="inline-flex items-center gap-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs font-bold text-yellow-300 hover:bg-yellow-500/20 disabled:opacity-50"
+                    >
+                      {coachCheckLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        "Vérifier"
+                      )}
+                    </button>
+                  )}
+                </div>
+                {!isCoachCodeFormatValid && (
+                  <p className="text-[11px] text-amber-400">
+                    Format attendu : 4+ caractères alphanumériques (ex: FAOUZI-PRO).
+                  </p>
+                )}
+                {coachCheckMessage && (
+                  <p
+                    className={`flex items-center gap-1.5 text-[11px] font-semibold ${
+                      coachCheckMessage.type === "success"
+                        ? "text-emerald-400"
+                        : "text-rose-400"
+                    }`}
+                  >
+                    {coachCheckMessage.type === "success" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {coachCheckMessage.text}
+                  </p>
+                )}
               </div>
             )}
 

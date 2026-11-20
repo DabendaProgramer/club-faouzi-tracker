@@ -2,10 +2,13 @@
 
 import React, { useState } from "react";
 import {
+  AlertCircle,
   Check,
+  CheckCircle2,
   Cloud,
   Crown,
   Download,
+  Loader2,
   LogIn,
   Settings,
   Sparkles,
@@ -18,6 +21,8 @@ import {
   WorkoutSession,
 } from "@/types/workout";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { canUseDemoTierToggle } from "@/lib/auth-state";
+import { getCurrentUserId, linkCoachByCode } from "@/lib/supabase-sync";
 
 interface SubscriptionProfileViewProps {
   settings: UserSettings;
@@ -25,6 +30,12 @@ interface SubscriptionProfileViewProps {
   onUpdateSettings: (partial: Partial<UserSettings>) => void;
   onShowLanding?: () => void;
   onSignOut?: () => void;
+  onLinkCoach?: (code: string) => Promise<{
+    ok: boolean;
+    coachName?: string;
+    coachCode?: string;
+    error?: string;
+  }>;
 }
 
 export function SubscriptionProfileView({
@@ -33,12 +44,52 @@ export function SubscriptionProfileView({
   onUpdateSettings,
   onShowLanding,
   onSignOut,
+  onLinkCoach,
 }: SubscriptionProfileViewProps) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState(settings.email || "");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [coachCodeDraft, setCoachCodeDraft] = useState<string | null>(null);
+  const coachCodeInput = coachCodeDraft ?? settings.coachCode ?? "";
+  const [coachLinkLoading, setCoachLinkLoading] = useState(false);
+  const [coachLinkError, setCoachLinkError] = useState<string | null>(null);
+  const [coachLinkSuccess, setCoachLinkSuccess] = useState<string | null>(null);
+  const allowDemoTierToggle = canUseDemoTierToggle(settings);
+
+  const handleLinkCoach = async () => {
+    setCoachLinkLoading(true);
+    setCoachLinkError(null);
+    setCoachLinkSuccess(null);
+    try {
+      const res = onLinkCoach
+        ? await onLinkCoach(coachCodeInput)
+        : await linkCoachByCode(
+            (await getCurrentUserId()) ?? "",
+            coachCodeInput
+          );
+
+      if (res.ok) {
+        const normalizedCode =
+          res.coachCode ?? coachCodeInput.trim().toUpperCase();
+        setCoachCodeDraft(null);
+        onUpdateSettings({
+          coachCode: normalizedCode,
+          linkedCoachName: res.coachName,
+        });
+        setCoachLinkSuccess(
+          `Lié au coach ${res.coachName ?? "Coach"} (${normalizedCode})`
+        );
+      } else {
+        setCoachLinkError(res.error ?? "Impossible de lier ce code coach.");
+      }
+    } catch {
+      setCoachLinkError("Erreur lors de la liaison avec le coach.");
+    } finally {
+      setCoachLinkLoading(false);
+    }
+  };
 
   const handleSubscribePro = async () => {
     setCheckoutLoading(true);
@@ -58,10 +109,16 @@ export function SubscriptionProfileView({
         return;
       }
       if (data.demoMode) {
-        onUpdateSettings({ tier: "pro" });
-        setCheckoutMessage(
-          "Mode Démo : abonnement Club Faouzi Pro activé localement ! (Configure Stripe dans .env.local pour le paiement réel)."
-        );
+        if (allowDemoTierToggle) {
+          onUpdateSettings({ tier: "pro" });
+          setCheckoutMessage(
+            "Mode Démo : abonnement Club Faouzi Pro activé localement ! (Configure Stripe dans .env.local pour le paiement réel)."
+          );
+        } else {
+          setCheckoutMessage(
+            "Paiement Stripe requis pour passer à Club Faouzi Pro (Stripe non configuré sur cet environnement)."
+          );
+        }
       } else if (data.error) {
         setCheckoutMessage(data.error);
       }
@@ -201,19 +258,59 @@ export function SubscriptionProfileView({
               </span>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-zinc-400">Code Coach :</span>
-              <input
-                type="text"
-                placeholder="Ex: FAOUZI-PRO"
-                value={settings.coachCode ?? ""}
-                onChange={(e) =>
-                  onUpdateSettings({
-                    coachCode: e.target.value.toUpperCase(),
-                  })
-                }
-                className="w-36 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-right font-mono text-xs font-bold uppercase text-white outline-none focus:border-yellow-500"
-              />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-zinc-400">Code Coach :</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Ex: FAOUZI-PRO"
+                    value={coachCodeInput}
+                    onChange={(e) => {
+                      setCoachCodeDraft(e.target.value.toUpperCase());
+                      setCoachLinkError(null);
+                      setCoachLinkSuccess(null);
+                    }}
+                    className="w-32 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-right font-mono text-xs font-bold uppercase text-white outline-none focus:border-yellow-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleLinkCoach}
+                    disabled={coachLinkLoading}
+                    className="inline-flex items-center gap-1 rounded-lg bg-yellow-500 px-2.5 py-1 text-[11px] font-black text-zinc-950 transition hover:bg-yellow-400 disabled:opacity-50"
+                  >
+                    {coachLinkLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Validation...
+                      </>
+                    ) : (
+                      "Lier"
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {settings.linkedCoachName && settings.coachCode && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Coach lié : {settings.linkedCoachName} ({settings.coachCode})
+                </div>
+              )}
+
+              {coachLinkSuccess && (
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  {coachLinkSuccess}
+                </p>
+              )}
+
+              {coachLinkError && (
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-rose-400">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  {coachLinkError}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -231,16 +328,18 @@ export function SubscriptionProfileView({
               Club Faouzi Pro — 9€ / mois
             </h3>
           </div>
-          <button
-            onClick={() =>
-              onUpdateSettings({
-                tier: settings.tier === "pro" ? "free" : "pro",
-              })
-            }
-            className="rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[10px] font-semibold text-zinc-300 hover:border-yellow-500/50"
-          >
-            Tester {settings.tier === "pro" ? "Gratuit" : "Pro"}
-          </button>
+          {allowDemoTierToggle && (
+            <button
+              onClick={() =>
+                onUpdateSettings({
+                  tier: settings.tier === "pro" ? "free" : "pro",
+                })
+              }
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[10px] font-semibold text-zinc-300 hover:border-yellow-500/50"
+            >
+              Tester {settings.tier === "pro" ? "Gratuit" : "Pro"}
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs">

@@ -166,3 +166,49 @@ create policy "Coaches view linked athletes badges" on public.unlocked_badges
       where p.id = unlocked_badges.user_id and p.coach_id = auth.uid()
     )
   );
+
+-- 6. Exercices personnalisés
+create table if not exists public.custom_exercises (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  exercise_id text not null,
+  name text not null,
+  muscle_group text not null check (muscle_group in ('Biceps', 'Épaules', 'Triceps', 'Dos', 'Chest', 'Legs')),
+  default_unit text not null default 'kg' check (default_unit in ('kg', 'lbs')),
+  is_each_side boolean not null default false,
+  notes text,
+  audio_memo_label text,
+  min_pr_reps int,
+  default_sets jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (user_id, exercise_id)
+);
+
+-- 7. Planning personnalisé (Split Days)
+create table if not exists public.custom_split_days (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  day_index int not null,
+  day_label text not null,
+  title text not null,
+  is_rest boolean not null default false,
+  pre_workout_note text,
+  exercise_ids text[] not null default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (user_id, day_index)
+);
+
+alter table public.custom_exercises enable row level security;
+alter table public.custom_split_days enable row level security;
+
+drop policy if exists "Users manage own custom exercises" on public.custom_exercises;
+create policy "Users manage own custom exercises" on public.custom_exercises
+  for all using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users manage own custom split days" on public.custom_split_days;
+create policy "Users manage own custom split days" on public.custom_split_days
+  for all using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

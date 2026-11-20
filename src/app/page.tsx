@@ -21,17 +21,28 @@ import {
   WorkoutSession,
 } from "@/types/workout";
 import {
-  INITIAL_DEMO_SESSIONS,
   PRESET_EXERCISES,
   SPLIT_11_DAYS,
 } from "@/data/presets";
+import {
+  createSignedOutResetState,
+  DEFAULT_CUSTOM_DAYS,
+  DEFAULT_SETTINGS,
+  mergeExercisesWithPresets,
+  resolveAuthSuccessState,
+  resolveCloudHydrationState,
+  resolveDemoEntryState,
+} from "@/lib/auth-state";
 import { isWorkingSet, toKg } from "@/lib/workout-engine";
 import { supabase } from "@/lib/supabase";
 import {
   fetchCloudData,
   getCurrentUserId,
+  linkCoachByCode,
   saveBadgeToCloud,
   saveCheckInToCloud,
+  saveCustomExercisesToCloud,
+  saveCustomSplitDaysToCloud,
   saveSessionToCloud,
   syncProfileSettingsToCloud,
 } from "@/lib/supabase-sync";
@@ -61,36 +72,6 @@ type TabKey =
 
 type EntryMode = "landing" | "onboarding" | "app";
 
-const DEFAULT_SETTINGS: UserSettings = {
-  displayName: "Athlète Faouzi",
-  email: "",
-  role: "athlete",
-  onboardingCompleted: false,
-  tier: "pro",
-  splitMode: "11-day",
-  currentCycleDay: 1,
-  roundingStep: 0.5,
-  preferredUnit: "kg",
-  defaultRestSeconds: 120,
-};
-
-const DEFAULT_CUSTOM_DAYS: SplitDay[] = [
-  {
-    dayIndex: 1,
-    dayLabel: "Jour 1",
-    title: "Séance Perso A",
-    isRest: false,
-    exerciseIds: ["ez-bar-curl", "lat-pulldown"],
-  },
-  {
-    dayIndex: 2,
-    dayLabel: "Jour 2",
-    title: "Repos",
-    isRest: true,
-    exerciseIds: [],
-  },
-];
-
 const STORAGE_KEY = "club_faouzi_tracker_state_v1";
 
 function formatHourMin(iso?: string): string {
@@ -110,9 +91,7 @@ export default function HomePage() {
   const [exercises, setExercises] = useState<Exercise[]>(PRESET_EXERCISES);
   const [customDays, setCustomDays] =
     useState<SplitDay[]>(DEFAULT_CUSTOM_DAYS);
-  const [history, setHistory] = useState<WorkoutSession[]>(
-    INITIAL_DEMO_SESSIONS
-  );
+  const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [activeSets, setActiveSets] = useState<LoggedSet[]>([]);
   const [badges, setBadges] = useState<UnlockedBadge[]>([]);
   const [checkIns, setCheckIns] = useState<CoachingCheckIn[]>([]);
@@ -127,6 +106,24 @@ export default function HomePage() {
 
   // Hydrate from localStorage, then sync from Supabase if logged in
   useEffect(() => {
+    const applyCloudHydration = async (
+      userId: string,
+      userEmail?: string,
+      userFullName?: string
+    ) => {
+      const cloud = await fetchCloudData(userId);
+      const next = resolveCloudHydrationState(cloud, userEmail, userFullName);
+      setSettings(next.settings);
+      setHistory(next.history);
+      setBadges(next.badges);
+      setExercises(next.exercises);
+      setCustomDays(next.customDays);
+      if (next.initialTab) {
+        setTab(next.initialTab);
+      }
+      setEntryMode(next.entryMode);
+    };
+
     queueMicrotask(async () => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -143,10 +140,9 @@ export default function HomePage() {
             }
           }
           if (parsed.exercises) {
-            const customOnes = (parsed.exercises as Exercise[]).filter(
-              (ex) => !PRESET_EXERCISES.some((p) => p.id === ex.id)
+            setExercises(
+              mergeExercisesWithPresets(parsed.exercises as Exercise[])
             );
-            setExercises([...customOnes, ...PRESET_EXERCISES]);
           }
           if (parsed.customDays) setCustomDays(parsed.customDays);
           if (parsed.history) setHistory(parsed.history);
@@ -156,44 +152,10 @@ export default function HomePage() {
           if (parsed.todayCheckIn) setTodayCheckIn(parsed.todayCheckIn);
         }
 
-        const handleSignedInUser = async (
-          userId: string,
-          userEmail?: string,
-          userFullName?: string
-        ) => {
-          const cloud = await fetchCloudData(userId);
-          if (cloud.settingsPartial) {
-            setSettings((prev) => ({
-              ...prev,
-              ...cloud.settingsPartial,
-              email: cloud.settingsPartial?.email || userEmail || prev.email,
-            }));
-            if (cloud.settingsPartial.role === "coach") {
-              setTab("coach_athletes");
-            }
-            setEntryMode(
-              cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
-            );
-          } else {
-            setSettings((prev) => ({
-              ...prev,
-              email: userEmail || prev.email,
-              displayName: userFullName || prev.displayName,
-            }));
-            setEntryMode("onboarding");
-          }
-          if (cloud.sessions && cloud.sessions.length > 0) {
-            setHistory(cloud.sessions);
-          }
-          if (cloud.badges && cloud.badges.length > 0) {
-            setBadges(cloud.badges);
-          }
-        };
-
         const userId = await getCurrentUserId();
         if (userId && supabase) {
           const { data } = await supabase.auth.getUser();
-          await handleSignedInUser(
+          await applyCloudHydration(
             userId,
             data.user?.email,
             data.user?.user_metadata?.full_name as string | undefined
@@ -214,30 +176,11 @@ export default function HomePage() {
         (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
         session?.user
       ) {
-        const cloud = await fetchCloudData(session.user.id);
-        if (cloud.settingsPartial) {
-          setSettings((prev) => ({
-            ...prev,
-            ...cloud.settingsPartial,
-            email:
-              cloud.settingsPartial?.email || session.user.email || prev.email,
-          }));
-          if (cloud.settingsPartial.role === "coach") {
-            setTab("coach_athletes");
-          }
-          setEntryMode(
-            cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
-          );
-        } else {
-          setSettings((prev) => ({
-            ...prev,
-            email: session.user.email || prev.email,
-            displayName:
-              (session.user.user_metadata?.full_name as string | undefined) ||
-              prev.displayName,
-          }));
-          setEntryMode("onboarding");
-        }
+        await applyCloudHydration(
+          session.user.id,
+          session.user.email,
+          session.user.user_metadata?.full_name as string | undefined
+        );
       }
     });
 
@@ -423,7 +366,42 @@ export default function HomePage() {
   };
 
   const handleAddCustomExercise = (ex: Exercise) => {
-    setExercises((prev) => [ex, ...prev]);
+    setExercises((prev) => {
+      const updated = [ex, ...prev];
+      void getCurrentUserId().then((uid) => {
+        if (uid) void saveCustomExercisesToCloud(uid, updated);
+      });
+      return updated;
+    });
+  };
+
+  const handleUpdateCustomDays = (days: SplitDay[]) => {
+    setCustomDays(days);
+    void getCurrentUserId().then((uid) => {
+      if (uid) void saveCustomSplitDaysToCloud(uid, days);
+    });
+  };
+
+  const handleOnboardingComplete = (updates: Partial<UserSettings>) => {
+    handleUpdateSettings(updates);
+    setEntryMode("app");
+    if (
+      updates.role === "athlete" &&
+      updates.coachCode &&
+      !updates.linkedCoachName
+    ) {
+      void getCurrentUserId().then(async (uid) => {
+        if (!uid) return;
+        const res = await linkCoachByCode(uid, updates.coachCode ?? "");
+        if (res.ok) {
+          setSettings((prev) => ({
+            ...prev,
+            coachCode: res.coachCode,
+            linkedCoachName: res.coachName,
+          }));
+        }
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -431,11 +409,18 @@ export default function HomePage() {
       await supabase.auth.signOut();
     }
     localStorage.removeItem(STORAGE_KEY);
-    setSettings(DEFAULT_SETTINGS);
-    setActiveSets([]);
-    setTodayCheckIn(null);
-    setTab("workout");
-    setEntryMode("landing");
+    const reset = createSignedOutResetState();
+    setSettings(reset.settings);
+    setExercises(reset.exercises);
+    setCustomDays(reset.customDays);
+    setHistory(reset.history);
+    setBadges(reset.badges);
+    setCheckIns(reset.checkIns);
+    setActiveSets(reset.activeSets);
+    setTodayCheckIn(reset.todayCheckIn);
+    setNewlyUnlockedBadge(null);
+    setTab(reset.tab);
+    setEntryMode(reset.entryMode);
   };
 
   // 1. Landing & Auth Gate
@@ -443,12 +428,17 @@ export default function HomePage() {
     return (
       <LandingAndAuth
         onEnterDemo={() => {
-          handleUpdateSettings({ onboardingCompleted: true });
-          setEntryMode("app");
+          const demo = resolveDemoEntryState(settings);
+          setSettings(demo.settings);
+          setHistory(demo.history);
+          setEntryMode(demo.entryMode);
         }}
         onAuthSuccess={(email) => {
-          handleUpdateSettings({ email });
-          setEntryMode(settings.onboardingCompleted ? "app" : "onboarding");
+          const authInit = resolveAuthSuccessState(email);
+          setSettings(authInit.settings);
+          setHistory(authInit.history);
+          setBadges(authInit.badges);
+          setEntryMode(authInit.entryMode);
         }}
       />
     );
@@ -459,10 +449,7 @@ export default function HomePage() {
     return (
       <OnboardingFlow
         initialSettings={settings}
-        onComplete={(updates) => {
-          handleUpdateSettings(updates);
-          setEntryMode("app");
-        }}
+        onComplete={handleOnboardingComplete}
       />
     );
   }
@@ -580,7 +567,7 @@ export default function HomePage() {
             onSelectCycleDay={(dayIndex) =>
               handleUpdateSettings({ currentCycleDay: dayIndex })
             }
-            onUpdateCustomDays={setCustomDays}
+            onUpdateCustomDays={handleUpdateCustomDays}
             onUnlockProClick={() => setTab("profile")}
             onGoToWorkout={() => setTab("workout")}
           />

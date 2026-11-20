@@ -60,6 +60,8 @@ export interface SplitDay {
   exerciseIds: string[];
 }
 
+export type CustomSplitDay = SplitDay;
+
 export interface LoggedSet {
   id: string;
   exerciseId: string;
@@ -158,6 +160,7 @@ export interface CoachClientSummary {
   tier: SubscriptionTier;
   highestRank: FaouziRank;
   latestCheckIn?: CoachingCheckIn;
+  checkIns: CoachingCheckIn[];
   latestSessionTitle?: string;
   latestSessionDate?: string;
   latestTopSetLabel?: string;
@@ -168,6 +171,7 @@ export interface UserSettings {
   email: string;
   role: UserRole;
   coachCode?: string;
+  linkedCoachName?: string;
   onboardingCompleted: boolean;
   tier: SubscriptionTier;
   splitMode: "11-day" | "custom";
