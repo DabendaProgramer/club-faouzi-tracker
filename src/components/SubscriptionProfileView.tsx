@@ -24,6 +24,7 @@ interface SubscriptionProfileViewProps {
   history: WorkoutSession[];
   onUpdateSettings: (partial: Partial<UserSettings>) => void;
   onShowLanding?: () => void;
+  onSignOut?: () => void;
 }
 
 export function SubscriptionProfileView({
@@ -31,6 +32,7 @@ export function SubscriptionProfileView({
   history,
   onUpdateSettings,
   onShowLanding,
+  onSignOut,
 }: SubscriptionProfileViewProps) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
@@ -168,14 +170,24 @@ export function SubscriptionProfileView({
             </span>
           )}
 
-          {onShowLanding && (
+          {settings.email && onSignOut ? (
             <button
               type="button"
-              onClick={onShowLanding}
-              className="text-[11px] font-semibold text-zinc-400 hover:text-white"
+              onClick={onSignOut}
+              className="text-[11px] font-semibold text-rose-400 hover:text-rose-300"
             >
-              Page d&apos;accueil →
+              Déconnexion
             </button>
+          ) : (
+            onShowLanding && (
+              <button
+                type="button"
+                onClick={onShowLanding}
+                className="text-[11px] font-semibold text-zinc-400 hover:text-white"
+              >
+                Page d&apos;accueil →
+              </button>
+            )
           )}
         </div>
 
@@ -185,7 +197,7 @@ export function SubscriptionProfileView({
             <div className="flex items-center justify-between">
               <span className="text-zinc-400">Ton Code Coach à partager :</span>
               <span className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1 font-mono font-black text-yellow-400">
-                FAOUZI-PRO
+                {settings.coachCode || "FAOUZI-PRO"}
               </span>
             </div>
           ) : (

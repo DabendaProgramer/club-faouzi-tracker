@@ -151,10 +151,10 @@ export function OnboardingFlow({
 
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={() => (role === "coach" ? handleFinish() : setStep(2))}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 py-3 text-sm font-black text-zinc-950 hover:bg-yellow-400"
             >
-              Continuer
+              {role === "coach" ? "Accéder à l'Espace Coach" : "Continuer"}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>

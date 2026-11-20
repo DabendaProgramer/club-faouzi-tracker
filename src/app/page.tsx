@@ -135,6 +135,9 @@ export default function HomePage() {
           if (parsed.settings) {
             const mergedSettings = { ...DEFAULT_SETTINGS, ...parsed.settings };
             setSettings(mergedSettings);
+            if (mergedSettings.role === "coach") {
+              setTab("coach_athletes");
+            }
             if (mergedSettings.onboardingCompleted) {
               setEntryMode("app");
             }
@@ -165,6 +168,9 @@ export default function HomePage() {
               ...cloud.settingsPartial,
               email: cloud.settingsPartial?.email || userEmail || prev.email,
             }));
+            if (cloud.settingsPartial.role === "coach") {
+              setTab("coach_athletes");
+            }
             setEntryMode(
               cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
             );
@@ -216,6 +222,9 @@ export default function HomePage() {
             email:
               cloud.settingsPartial?.email || session.user.email || prev.email,
           }));
+          if (cloud.settingsPartial.role === "coach") {
+            setTab("coach_athletes");
+          }
           setEntryMode(
             cloud.settingsPartial.onboardingCompleted ? "app" : "onboarding"
           );
@@ -417,6 +426,18 @@ export default function HomePage() {
     setExercises((prev) => [ex, ...prev]);
   };
 
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    localStorage.removeItem(STORAGE_KEY);
+    setSettings(DEFAULT_SETTINGS);
+    setActiveSets([]);
+    setTodayCheckIn(null);
+    setTab("workout");
+    setEntryMode("landing");
+  };
+
   // 1. Landing & Auth Gate
   if (entryMode === "landing") {
     return (
@@ -588,6 +609,7 @@ export default function HomePage() {
             history={history}
             onUpdateSettings={handleUpdateSettings}
             onShowLanding={() => setEntryMode("landing")}
+            onSignOut={handleSignOut}
           />
         )}
       </main>

@@ -249,6 +249,9 @@ export function CoachDashboard({
     if (cloudClients.length > 0) {
       return cloudClients;
     }
+    if (settings.email) {
+      return [];
+    }
     const latestSess = userHistory[0];
     const best = latestSess ? getBestTopSet(latestSess.sets) : null;
     const selfClient: DemoClientExtended = {
@@ -269,10 +272,11 @@ export function CoachDashboard({
   }, [cloudClients, settings, userCheckIns, userHistory]);
 
   const selectedClient =
-    clients.find((c) => c.id === selectedClientId) ?? clients[0];
+    clients.find((c) => c.id === selectedClientId) ?? clients[0] ?? null;
 
   // Build complete cycle performance overview for selected client
   const cycleOverview = useMemo(() => {
+    if (!selectedClient) return [];
     const sorted = [...selectedClient.sessions].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
@@ -336,7 +340,7 @@ export function CoachDashboard({
           <h2 className="text-xl font-black text-white">
             {view === "athletes"
               ? `Mes Athlètes (${clients.length})`
-              : `Cycle Complet · ${selectedClient.fullName}`}
+              : `Cycle Complet · ${selectedClient?.fullName ?? "Aucun client"}`}
           </h2>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs font-bold text-zinc-300">
@@ -354,8 +358,26 @@ export function CoachDashboard({
         </span>
       </div>
 
+      {/* Empty state for real Coach with 0 linked athletes */}
+      {clients.length === 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 text-center space-y-2">
+          <Users className="mx-auto h-8 w-8 text-yellow-400" />
+          <h3 className="text-sm font-black text-white">
+            Aucun athlète lié pour le moment
+          </h3>
+          <p className="text-xs text-zinc-400">
+            Partage ton Code Coach{" "}
+            <span className="font-mono font-bold text-yellow-400">
+              {settings.coachCode || "dans l'onglet Profil"}
+            </span>{" "}
+            à tes clients pour qu&apos;ils apparaissent ici dès leur inscription.
+          </p>
+        </div>
+      )}
+
       {/* Horizontal Client Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {clients.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
         {clients.map((client) => {
           const isSelected = client.id === selectedClient.id;
           const score = client.latestCheckIn?.readinessScore;
@@ -387,7 +409,8 @@ export function CoachDashboard({
             </button>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* VIEW 1: ATHLÈTES & CHECK-INS */}
       {view === "athletes" && selectedClient && (
